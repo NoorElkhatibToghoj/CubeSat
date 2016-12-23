@@ -102,21 +102,24 @@ class Communication
 // TimeStamp Structure
 // From the on board clock on the OBC
 // =======================================
-struct TimeStamp
+class TimeStamp
 {
-  // change to unsigned short or unsigned char
-  int year;
-  int month;
-  int day;
-  int hour;
-  int minute;
-  int seconds;
+  // These variables use the Short data type
+  // See: https://www.arduino.cc/en/Reference/Short
+  short year;
+  short month;
+  short day;
+  short hour;
+  short minute;
+  short seconds;
 
-  TimeStamp() // change constructor
+  TimeStamp(short year, short month, short day, short minute, short seconds)
   {
-    hour = 12;
-    minute = 30;
-    seconds = 20;
+    this.year = year;
+    this.month = month;
+    this.day = day;
+    this.minute = minute;
+    this.seconds = seconds;
   }
 };
 
@@ -124,35 +127,39 @@ struct TimeStamp
 // Power Data Structure
 // Handling data from EPS and from on board power on OBC
 // =======================================
-struct PowerData
+class PowerData
 {
-  int voltage;
-  int current;
+  float voltage;
+  float current;
 
   // ================================================
   // Default Constructor for the Power Data Structure
   // ================================================
-  PowerData()
+  PowerData(float voltage, float current)
   {
-    voltage = 5;
-    current = 0.133;
+    this.voltage = voltage;
+    this.current = current;
   }
-
-  // TODO: Bus currents (5 and 3.3 buses)
-
 };
 
 // =======================================
 // Beacon Data Structure
 // Handling data that will be communicated through morse code
 // =======================================
-struct BeaconData
+class BeaconData
 {
   string callSign;
   string message;
   int messageLength;
 
-  // continue
+  BeaconData (string callSign,
+  string message,
+  int messageLength)
+  {
+    this.callSign = callSign;
+    this.message = message;
+    this.messageLength = messageLength;
+  }
 };
 
 // =======================================
@@ -160,51 +167,119 @@ struct BeaconData
 // Data about the cubesat to be stored on the OBC
 // and transmitted to ground station
 // =======================================
-struct TelemetryData
+class TelemetryData
 {
   TimeStamp TS;
   PowerData PD;
 
-  // research unsigned short and unsigned char
-  
-  int id; // counter, sequence number of the telemetry data entry
-  int telemetryTime; // ???
-  int batteryLevel; // remove after checking
+  short id; // counter, sequence number of the telemetry data entry
   bool payloadAlive;
-  int systemTemperature;
-  
+  float systemTemperature;
 
   // ====================================================
   // Default Constructor for the Telemetry Data Structure
   // ====================================================
-  TelemetryData() // insert into constructor definition
+  TelemetryData(short id, bool payloadAlive, float systemTemperature)
   {
-    batteryLevel = 100;
-    payloadAlive = false;
-    systemTemperature = 25;
+    this.id = id;
+    this.payloadAlive = payloadAlive;
+    this.systemTemperature = systemTemperature;
   }
 
+  TelemetryData(TelemetryData copyConstructor)
+  {
+    this.id = copyConstructor.id;
+    this.payloadAlive = copyConstructor.payloadAlive;
+    this.systemTemperature = copyConstructor.systemTemperature;
+
+    this.TS = copyConstructor.getTimeStamp();
+    this.PD = copyConstructor.getPowerData();
+  }
+
+  void setTimeStamp(TimeStamp TS)
+  {
+    this.TS = TS;
+  }
+
+  TimeStamp getTimeStamp()
+  {
+    return this.TS;
+  }
+
+  void setPowerData(PowerData PD)
+  {
+    this.PD = PD;
+  }
+
+  PowerData getPowerData()
+  {
+    return this.PD;
+  }
 };
 
 // =======================================
 // Payload Data Structure
 // Data structure to rx and tx with the payload
 // =======================================
-struct PayloadData
+class PayloadData
 {
   bool TxOrRx;
   string TXmessage;
-  int beaconInterval; // move to beacon data structure 
-  string callsign;
 
-  // research if we should add health data
+  bool TXready;
+  bool RXready;
 
-  // make constructor
+  // ====================================================
+  // Default Constructor for the Telemetry Data Structure
+  // ====================================================
+  PayloadData (bool TxOrRx, string TXmessage)
+  {
+    this.TxOrRx = TxOrRx;
+    this.TXmessage = TXmessage;
+  }
+
+  void setTXready(bool TXready)
+  {
+    this.TXready = TXready;
+  }
+
+  void setRXready(bool RXready)
+  {
+    this.RXready = RXready;
+  }
 };
+
+
+
+// =======================================
+// On Board Computer Data Class
+// Data structure for the OBC
+// =======================================
+class OBCData
+{
+  bool antennaDeployed;
+  bool postLaunchComplete;
+  int currentState;
+  bool telemetryRequests;
+
+  // ====================================================
+  // Default Constructor for the Telemetry Data Structure
+  // ====================================================
+  OBCData (bool antennaDeployed,
+    bool postLaunchComplete,
+    int currentState,
+    bool telemetryRequests)
+  {
+    this.antennaDeployed = antennaDeployed;
+    this.postLaunchComplete = postLaunchComplete;
+    this.currentState = currentState;
+    this.telemetryRequests = telemetryRequests;
+  }
+};
+
 
 // =======================================
 // General Data Class
-// 
 // =======================================
 class Data
 {
@@ -215,112 +290,38 @@ class Data
     PayloadData payData[3];
     int payCount;
 
-    // create data structure for OBCData to determine the current state
-    bool antennaDeployed;
-    bool TXready; // move inside payload data
-    bool RXready; // ``
-    bool postLaunchComplete;
-    int currentState;
-    bool telemetryRequests;
-
+    OBCData obcData[3];
+    int obcCount;
 
     // ====================================================
     // Default Constructor for the General Data class
     // ====================================================
-    Data()
+    Data ()
     {
       telCount = -1;
+      payCount = -1;
+      obcCount = -1;
+
       // make stack sizes dynamic using malloc or something similar
-    }
-
-    // ====================================================
-    // View Status function for the General Data class
-    // ====================================================
-    void ViewStatus()
-    {
-      if (telCount == -1)
-      {
-        Serial.print("No entries!");
-      }
-      else
-      {
-        Serial.print("Battery Level");
-        Serial.print(telData[telCount].batteryLevel);
-
-        Serial.print("Temperature");
-        Serial.print(telData[telCount].systemTemperature);
-
-        Serial.print("Time");
-        Serial.print(telData[telCount].TS.hour);
-        Serial.print(telData[telCount].TS.minute);
-        Serial.print(telData[telCount].TS.seconds);
-
-        Serial.print("Payload Alive");
-        Serial.print(telData[telCount].payloadAlive);
-        Serial.print("Payload Voltage");
-        Serial.print(telData[telCount].PD.voltage);
-        Serial.print("Payload Current");
-        Serial.print(telData[telCount].PD.current);
-      }
     }
 
     // ======================================================
     // Add Telemetry Entry function inside General Data class
-    // TODO: copy constructors for all classes to simplify stack 
     // ======================================================
-    void AddTelemetryEntry(TelemetryData t)
+    void addTelemetryEntry (TelemetryData t)
     {
       if ((telCount + 1) < 3)
       {
         telCount++;
-
-        telData[telCount].batteryLevel = t.batteryLevel;
-        telData[telCount].id = t.id;
-        telData[telCount].payloadAlive = t.payloadAlive;
-        telData[telCount].PD.current = t.PD.current;
-        telData[telCount].PD.voltage = t.PD.voltage;
-        telData[telCount].systemTemperature = t.systemTemperature;
-        telData[telCount].telemetryTime = t.telemetryTime;
-        telData[telCount].TS.day = t.TS.day;
-        telData[telCount].TS.hour = t.TS.hour;
-        telData[telCount].TS.minute = t.TS.minute;
-        telData[telCount].TS.month = t.TS.month;
-        telData[telCount].TS.seconds = t.TS.seconds;
-        telData[telCount].TS.year = t.TS.year;
+        telData[telCount] = t;
       }
       else
       {
-        //tx the last entry
         for (int i = 1; i < 3; i++)
         {
-          telData[i - 1].batteryLevel = telData[i].batteryLevel;
-          telData[i - 1].id = telData[i].id;
-          telData[i - 1].payloadAlive = telData[i].payloadAlive;
-          telData[i - 1].PD.current = telData[i].PD.current;
-          telData[i - 1].PD.voltage = telData[i].PD.voltage;
-          telData[i - 1].systemTemperature = telData[i].systemTemperature;
-          telData[i - 1].telemetryTime = telData[i].telemetryTime;
-          telData[i - 1].TS.day = telData[i].TS.day;
-          telData[i - 1].TS.hour = telData[i].TS.hour;
-          telData[i - 1].TS.minute = telData[i].TS.minute;
-          telData[i - 1].TS.month = telData[i].TS.month;
-          telData[i - 1].TS.seconds = telData[i].TS.seconds;
-          telData[i - 1].TS.year = telData[i].TS.year;
+          telData[i - 1] = telData[i];
         }
-
-        telData[telCount].batteryLevel = t.batteryLevel;
-        telData[telCount].id = t.id;
-        telData[telCount].payloadAlive = t.payloadAlive;
-        telData[telCount].PD.current = t.PD.current;
-        telData[telCount].PD.voltage = t.PD.voltage;
-        telData[telCount].systemTemperature = t.systemTemperature;
-        telData[telCount].telemetryTime = t.telemetryTime;
-        telData[telCount].TS.day = t.TS.day;
-        telData[telCount].TS.hour = t.TS.hour;
-        telData[telCount].TS.minute = t.TS.minute;
-        telData[telCount].TS.month = t.TS.month;
-        telData[telCount].TS.seconds = t.TS.seconds;
-        telData[telCount].TS.year = t.TS.year;
+        telData[telCount] = t;
       }
     }
 
@@ -329,7 +330,39 @@ class Data
     // =====================================================
     void addPayloadEntry (PayloadData p)
     {
+      if ((payCount + 1) < 3)
+      {
+        payCount++;
+        payData[payCount] = p;
+      }
+      else
+      {
+        for (int i = 1; i < 3; i++)
+        {
+          payData[i - 1] = payData[i];
+        }
+        payData[payCount] = p;
+      }
+    }
 
+    // =====================================================
+    // General Data Class: Adding OBC Entry function
+    // =====================================================
+    void addOBCEntry (OBCData o)
+    {
+      if ((obcCount + 1) < 3)
+      {
+        obcCount++;
+        obcData[obcCount] = o;
+      }
+      else
+      {
+        for (int i = 1; i < 3; i++)
+        {
+          obcData[i - 1] = obcData[i];
+        }
+        obcData[obcCount] = o;
+      }
     }
 
     // =====================================================
@@ -344,6 +377,14 @@ class Data
     // General Data Class: Deleting a Payload Row function
     // ====================================================
     void deletePayloadRow()
+    {
+
+    }
+
+    // ====================================================
+    // General Data Class: Deleting a OBC Row function
+    // ====================================================
+    void deleteOBCRow()
     {
 
     }
@@ -458,7 +499,7 @@ class Cubesat
       Wire.write("Stop");
       Serial.println("Stopping Transmission");
       Wire.endTransmission();    // stop transmitting
-      
+
       delay(1000);
     }
 
@@ -491,7 +532,7 @@ class Cubesat
     {
       timer.run();
 
-      orbitalModeDelay();              // Sleep for 15 min for preperation of other subsystems
+      orbitalModeDelay(); // Sleep for 15 min for other subsystems
       checkBattery ();
       checkRadioFrequency ();
     }
@@ -528,7 +569,7 @@ class Cubesat
       delay(500);
 
       Wire.beginTransmission(8); // transmit to device #8
-      
+
       Wire.write("JY1SAT TEST");
       Serial.println("JY1SAT TEST");
       Wire.endTransmission();    // stop transmitting
@@ -539,13 +580,13 @@ class Cubesat
       Wire.write("Stop");
       Serial.println("Stop .. ");
       Wire.endTransmission();    // stop transmitting
-      
+
       delay(1000);
-      
+
       Wire.requestFrom(8, 50);    // request 6 bytes from slave device #8
 
-      while (Wire.available()) 
-      { 
+      while (Wire.available())
+      {
         // slave may send less than requested
         char c = Wire.read(); // receive a byte as character
         Serial.print(c);         // print the character
@@ -557,7 +598,7 @@ class Cubesat
     // ====================================================
     void telecom()
     {
-      
+
     }
 };
 
@@ -608,6 +649,3 @@ void loop()
       break;
   }
 }
-
-
-
