@@ -8,71 +8,89 @@
 #define Failsafe 3
 #define Telecom 4
 
-// ???
-#define temp_add 90 // assume 90
-#define xyz  100 // assume 100
+#define START_MSG "start"
+#define SLEEP_MSG "sleep"
+#define STOP_MSG "stop"
+#define TEST_MSG "test"
 
-// define addresses for subsystems
+#define STACK_SIZE 3
 
 // check maximum time for the timer
 SimpleTimer timer;
 
-// make a class for temperature sensor and add function to read temp from sensor
-void getTemperature ()
+// Return status code for functions to enable exception Handling
+class Status
 {
-  Wire.beginTransmission(temp_add); //start talking
-  Wire.write(0); //ask for reg 0
-  Wire.endTransmission(); // complete talking
-  Wire.requestFrom(temp_add, 1); // ask for 1 byte
-  while (Wire.available() == 0); // wait for response
-  float c = Wire.read(); // get the temp
-  float f = round(c * 9.0 / 5.0 + 32.0);
-  Serial.print(c);
-  Serial.print("C, ");
-  Serial.print(f);
-  Serial.print("F.");
-  delay (3000);
+  int returnCode;
+  Status (int returnCode)
+  {
+    this.returnCode = returnCode;
+  }
+
+  bool success ()
+  {
+    return (this.returnCode == 0);
+  }
+
+  bool fail ()
+  {
+    return (this.returnCode != 0);
+  }
+
 }
+
 
 // =======================================
 // ADCS Function
 // convert into class
 // =======================================
-void ADCS ()
+class ADCS ()
 {
   // Define ADCS data structure
   int x, y, z;
 
-  Wire.beginTransmission (xyz); // xyz = ADCS address
-  Wire.write("start");
-  Serial.println("Starting ADCS Transmission");
-  Wire.endTransmission();
-  delay(500);
-  Wire.beginTransmission(xyz);
-
-  Wire.write(5); // assume x
-  Wire.write(6); // assume y
-  Wire.write(7); // assume zp
-
-  Wire.endTransmission();
-
-  Wire.requestFrom(xyz, 3);
-
-  if (Wire.available() <= 3)
+  ACDS(int x, int y, int z)
   {
-    x = Wire.read();
-    y = Wire.read();
-    z = Wire.read();
+    this.x = x;
+    this.y = y;
+    this.z = z;
   }
 
-  Serial.print("X =");
-  Serial.print(x);
-  Serial.print("Y =");
-  Serial.print(y);
-  Serial.print("Z =");
-  Serial.print(z);
+  Status transmitACDS (string acdsAddress)
+  {
+      Wire.beginTransmission (acdsAddress);
+      Wire.write(START_MSG);
+      Serial.println("Starting ADCS Transmission");
+      Wire.endTransmission();
+      delay(500);
+      Wire.beginTransmission(acdsAddress);
 
-  // enter x,y,z into cubesat data
+      Wire.write(5); // assume x
+      Wire.write(6); // assume y
+      Wire.write(7); // assume zp
+
+      Wire.endTransmission();
+
+      Wire.requestFrom(acdsAddress, 3);
+
+      if (Wire.available() <= 3)
+      {
+        x = Wire.read();
+        y = Wire.read();
+        z = Wire.read();
+      } else {
+        return Status(1);
+      }
+
+      Serial.print("X =");
+      Serial.print(x);
+      Serial.print("Y =");
+      Serial.print(y);
+      Serial.print("Z =");
+      Serial.print(z);
+
+      return Status(0);
+  }
 }
 
 // =======================================
@@ -87,14 +105,20 @@ class Communication
     // ========================================
     // Default Communication Class constructor
     // ========================================
-    Communication ()
+    Communication (bool I2C, bool serial)
     {
-
+        this.I2C = I2C;
+        this.serial = serial;
     }
 
-    bool startCommunication()
+    Status startCommunication(string commAddress)
     {
-      return true;
+      return Status(0);
+    }
+
+    Status stopCommunication()
+    {
+      return Status(0);
     }
 };
 
@@ -284,13 +308,13 @@ class OBCData
 class Data
 {
   public:
-    TelemetryData telData[3];
+    TelemetryData telData[STACK_SIZE];
     int telCount;
 
-    PayloadData payData[3];
+    PayloadData payData[STACK_SIZE];
     int payCount;
 
-    OBCData obcData[3];
+    OBCData obcData[STACK_SIZE];
     int obcCount;
 
     // ====================================================
@@ -301,92 +325,96 @@ class Data
       telCount = -1;
       payCount = -1;
       obcCount = -1;
-
-      // make stack sizes dynamic using malloc or something similar
     }
 
     // ======================================================
     // Add Telemetry Entry function inside General Data class
     // ======================================================
-    void addTelemetryEntry (TelemetryData t)
+    Status addTelemetryEntry (TelemetryData t)
     {
-      if ((telCount + 1) < 3)
+      if ((telCount + 1) < STACK_SIZE)
       {
         telCount++;
         telData[telCount] = t;
       }
       else
       {
-        for (int i = 1; i < 3; i++)
+        for (int i = 1; i < STACK_SIZE; i++)
         {
           telData[i - 1] = telData[i];
         }
         telData[telCount] = t;
       }
+
+      return Status(0);
     }
 
     // =====================================================
     // General Data Class: Adding Payload Entry function
     // =====================================================
-    void addPayloadEntry (PayloadData p)
+    Status addPayloadEntry (PayloadData p)
     {
-      if ((payCount + 1) < 3)
+      if ((payCount + 1) < STACK_SIZE)
       {
         payCount++;
         payData[payCount] = p;
       }
       else
       {
-        for (int i = 1; i < 3; i++)
+        for (int i = 1; i < STACK_SIZE; i++)
         {
           payData[i - 1] = payData[i];
         }
         payData[payCount] = p;
       }
+
+      return Status(0);
     }
 
     // =====================================================
     // General Data Class: Adding OBC Entry function
     // =====================================================
-    void addOBCEntry (OBCData o)
+    Status addOBCEntry (OBCData o)
     {
-      if ((obcCount + 1) < 3)
+      if ((obcCount + 1) < STACK_SIZE)
       {
         obcCount++;
         obcData[obcCount] = o;
       }
       else
       {
-        for (int i = 1; i < 3; i++)
+        for (int i = 1; i < STACK_SIZE; i++)
         {
           obcData[i - 1] = obcData[i];
         }
         obcData[obcCount] = o;
       }
+
+      return Status(0);
     }
 
     // =====================================================
     // General Data Class: Deleting a Telemetry Row function
     // =====================================================
-    void deleteTelemetryRow()
+    Status deleteTelemetryRow()
     {
-
+        return Status(0);
     }
 
     // ====================================================
     // General Data Class: Deleting a Payload Row function
     // ====================================================
-    void deletePayloadRow()
+    Status deletePayloadRow()
     {
-
+        return Status(0);
     }
 
     // ====================================================
     // General Data Class: Deleting a OBC Row function
     // ====================================================
-    void deleteOBCRow()
+    Status deleteOBCRow()
     {
-
+        return Status(0);
     }
 };
 
@@ -468,49 +496,53 @@ class Cubesat
     void orbitalModeDelay ()
     {
       Wire.beginTransmission(98); // transmit to device's
-      Wire.write("Sleep");        // sends five bytes
+      Wire.write(SLEEP_MSG);        // sends five bytes
       Wire.endTransmission();    // stop transmitting
       Serial.print("orbit mode");
 
       // timer does 15 mintues sleep
+
+      return Status(0);
     }
 
     // ====================================================
     // Checking the Radio Frequency function
     // Check if payload is alive; return status of RF payload
     // ====================================================
-    int checkRadioFrequency ()
+    Status checkRadioFrequency ()
     {
       Wire.beginTransmission(8); // transmit to device #8
-      Wire.write("Start");        // sends five bytes
+      Wire.write(START_MSG);        // sends five bytes
       Serial.println("Starting Transmission");
       Wire.endTransmission();    // stop transmitting
 
       delay(500);
 
       Wire.beginTransmission(8); // transmit to device #8
-      Wire.write("JY1SAT TEST");
+      Wire.write(TEST_MSG);
       Serial.println("JY1SAT TEST");
       Wire.endTransmission();    // stop transmitting
 
       delay(1000);
 
       Wire.beginTransmission(8); // transmit to device #8
-      Wire.write("Stop");
+      Wire.write(STOP_MSG);
       Serial.println("Stopping Transmission");
       Wire.endTransmission();    // stop transmitting
 
       delay(1000);
+
+      return Status(0);
     }
 
     // ====================================================
     // Checking the Battery function
     // Return the EPS state as an EPS class data structure
     // ====================================================
-    int checkBattery ()
+    Status checkBattery ()
     {
       Wire.beginTransmission(78); // transmit to eps's
-      Wire.write("START");        // sends five bytes
+      Wire.write(START_MSG);        // sends five bytes
       Wire.endTransmission();     // stop transmitting
       Wire.beginTransmission(77);
       Wire.write(5);              // assume x
@@ -520,64 +552,88 @@ class Cubesat
       {
         JY1DATA.batteryLevel = Wire.read();
       }
+      else
+      {
+        return Status(1);
+      }
 
       Serial.print("BATTERY LEVEL = ");
       Serial.print(JY1DATA.batteryLevel);
+
+      return Status(0);
     }
 
     // ====================================================
     // Cubesat Post Launch function
     // ====================================================
-    void postLaunch()
+    Status postLaunch() // post launch function does not throw any exceptions
     {
       timer.run();
 
-      orbitalModeDelay(); // Sleep for 15 min for other subsystems
-      checkBattery ();
-      checkRadioFrequency ();
+      Status orbitalStatus = orbitalModeDelay(); // Sleep for 15 min for other subsystems
+      if (orbitalStatus.fail())
+      {
+          // handle orbital mode delay failiure here
+      }
+
+      Status batteryStatus = checkBattery ();
+      if (batteryStatus.fail())
+      {
+          // handle battery status check failiure here
+      }
+
+      Status rfStatus = checkRadioFrequency ();
+      if (rfStatus.fail())
+      {
+          // handle RF check failiure here
+      }
+
+      return Status(0);
     }
 
     // ====================================================
     // Cubesat Fail Safe State function
     // ====================================================
-    void failSafe()
+    Status failSafe()
     {
       Wire.beginTransmission(8); // transmit to device #8
-      Wire.write("Sleep");        // sends five bytes
+      Wire.write(SLEEP_MSG);        // sends five bytes
       Wire.endTransmission();    // stop transmitting
+
+      return Status(0);
     }
 
     // ====================================================
     // Cubesat Recharging State function
     // ====================================================
-    void recharging()
+    Status recharging()
     {
-
+      return Status(0);
     }
 
     // ====================================================
     // Cubesat Beaconing State Function
     // ====================================================
-    void beaconing()
+    Status beaconing()
     {
       Serial.println("We are in beaconing mode");
       char x = 's';
       Wire.beginTransmission(8); // transmit to device #8
-      Wire.write("Start");        // sends five bytes
+      Wire.write(START_MSG);        // sends five bytes
       Serial.println("Starting Beaconing");
       Wire.endTransmission();    // stop transmitting
       delay(500);
 
       Wire.beginTransmission(8); // transmit to device #8
 
-      Wire.write("JY1SAT TEST");
+      Wire.write(TEST_MSG);
       Serial.println("JY1SAT TEST");
       Wire.endTransmission();    // stop transmitting
 
       delay(1000);
 
       Wire.beginTransmission(8); // transmit to device #8
-      Wire.write("Stop");
+      Wire.write(STOP_MSG);
       Serial.println("Stop .. ");
       Wire.endTransmission();    // stop transmitting
 
@@ -591,6 +647,8 @@ class Cubesat
         char c = Wire.read(); // receive a byte as character
         Serial.print(c);         // print the character
       }
+
+      return Status(0);
     }
 
     // ====================================================
@@ -598,7 +656,7 @@ class Cubesat
     // ====================================================
     void telecom()
     {
-
+      return Status(0);
     }
 };
 
@@ -626,26 +684,29 @@ void loop()
   switch (JY1SAT.JY1STATES.currentState)
   {
     case PostLaunch:
-      JY1SAT.postLaunch();
+      if (JY1SAT.postLaunch().fail()) goto default;
+      break;
+
+    case Telecom:
+      if (JY1SAT.telecom().fail()) goto default;
+      break;
+
+    case Beaconing:
+      if (JY1SAT.beaconing().fail()) goto default;
+      break;
+
+    case Recharge:
+
+      if (JY1SAT.recharging().fail()) goto default;
       break;
 
     case Failsafe:
       JY1SAT.failSafe();
       break;
 
-    case Telecom:
-      JY1SAT.telecom();
-      break;
-
-    case Beaconing:
-      JY1SAT.beaconing();
-      break;
-
-    case Recharge:
-      JY1SAT.recharging();
-      break;
-
     default:
+      JY1SAT.JY1STATES.currentState = Failsafe;
+      JY1SAT.failSafe();
       break;
   }
 }
