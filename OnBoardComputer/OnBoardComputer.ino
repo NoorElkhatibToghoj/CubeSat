@@ -396,25 +396,74 @@ class Data
     // =====================================================
     // General Data Class: Deleting a Telemetry Row function
     // =====================================================
-    Status deleteTelemetryRow()
+    Status deleteِِTelemetryRow(int numberOfRowsToDelete, int index[STACK_SIZE]) 
     {
+      for (int i=0; i<numberOfRowsToDelete; i++)
+      {
+        for (int j=index[i]; j<STACK_SIZE; j++)
+        {
+          telData[j]=telData[j+1];
+        }
+        telCount--;
+      }
         return Status(0);
+    }
+    // =====================================================
+    // General Data Class: Deleting all Telemetry Data function
+    // =====================================================
+    Status deleteAllTelemetryData()
+    {
+      telCount=0; // this will simply take me to the start of the stack rendering the other data inaccessable
+      // i don't know if there is any function for freeing memory in arduino
     }
 
     // ====================================================
     // General Data Class: Deleting a Payload Row function
     // ====================================================
-    Status deletePayloadRow()
+    Status deletePayloadRow(int numberOfRowsToDelete, int index[STACK_SIZE])
     {
+        for (int i=0; i<numberOfRowsToDelete; i++)
+      {
+        for (int j=index[i]; j<STACK_SIZE; j++)
+        {
+          payData[j]=payData[j+1];
+        }
+        payCount--;
+      }
         return Status(0);
+    }
+  
+    // =====================================================
+    // General Data Class: Deleting all Payload Data function
+    // =====================================================
+    Status deleteAllPayData()
+    {
+      payCount=0; // this will simply take me to the start of the stack rendering the other data inaccessable
+      // i don't know if there is any function for freeing memory in arduino
     }
 
     // ====================================================
     // General Data Class: Deleting a OBC Row function
     // ====================================================
-    Status deleteOBCRow()
+    Status deleteOBCRow(int numberOfRowsToDelete, int index[STACK_SIZE])
     {
+        for (int i=0; i<numberOfRowsToDelete; i++)
+      {
+        for (int j=index[i]; j<STACK_SIZE; j++)
+        {
+          obcData[j]=obcData[j+1];
+        }
+        obcCount--;
+      }
         return Status(0);
+    }
+    // =====================================================
+    // General Data Class: Deleting all OBD Data function
+    // =====================================================
+    Status deleteAllOBCData()
+    {
+      obcCount=0; // this will simply take me to the start of the stack rendering the other data inaccessable
+      // i don't know if there is any function for freeing memory in arduino
     }
 };
 
